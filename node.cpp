@@ -339,6 +339,7 @@ int main(int argc, char ** argv) {
 
     load_from_file();
     // initialize routing information
+    //hello!
     int listen_socket;
     fd_set full_fd_set;
     fd_set *running_ptr;
