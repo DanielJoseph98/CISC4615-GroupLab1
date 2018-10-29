@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <time.h>
+
 #include "ipsum.h"
 
 using namespace std;
@@ -89,7 +90,7 @@ void print_mem(char const *vp, size_t n)
     putchar('\n');
 };
 
-void send_packet_with_interface(interface_t * interface, char * data, int data_size, struct iphdr * ip_header) {
+void send_packet_with_interface(interface_t * interface, char * data, int data_size, struct ip * ip_header) {
     if (!interface->is_up) return;
 
 // TODO --- 1
@@ -97,7 +98,7 @@ void send_packet_with_interface(interface_t * interface, char * data, int data_s
 // sendto function
 // https://linux.die.net/man/2/sendto
 
-    if (sendto(interface->send_socket, full_packet, ip_header->tot_len, 0, (struct sockaddr*) &dest_addr, sizeof(dest_addr)) < 0) {
+    if (sendto(interface->send_socket, full_packet, ip_header->ip_len, 0, (struct sockaddr*) &dest_addr, sizeof(dest_addr)) < 0) {
         perror("Failed to send packet");
     }
 }
@@ -296,6 +297,7 @@ void choose_command(char * command) {
     // Get the command from the user
     // Process the commands
 
+    char temp_char;
     while ((temp_char = getchar()) != '\n' && temp_char != EOF); // clear stdin buffer
 }
 
@@ -337,9 +339,13 @@ void handle_packet(int listen_socket) {
 int main(int argc, char ** argv) {
     // Initialize based on input file
 
+    if (argc < 2){
+      perror("Usage: ./node <own_config_file> <other_config_files>");
+    }
+
     load_from_file();
     // initialize routing information
-    //hello!
+
     int listen_socket;
     fd_set full_fd_set;
     fd_set *running_ptr;
