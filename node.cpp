@@ -89,7 +89,7 @@ void print_mem(char const *vp, size_t n)
         printf("%02x\n", p[i]);
     putchar('\n');
 };
-
+/*
 void send_packet_with_interface(interface_t * interface, char * data, int data_size, struct ip * ip_header) {
     if (!interface->is_up) return;
 
@@ -102,7 +102,7 @@ void send_packet_with_interface(interface_t * interface, char * data, int data_s
         perror("Failed to send packet");
     }
 }
-
+*/
 interface_t* get_interface_by_id(int id) {
     interface_t * temp = IFCONFIG_TABLE.ifconfig_entries;
     int i;
@@ -162,13 +162,28 @@ void build_tables(FILE *fp) {
     // TODO --- 4
     // Build the forwarding table
     // Build the interface table
+    printf("Hello! \n");
+
 }
 
-void load_from_file() {
+void load_from_file(int argc, char *argv[]) {
 
 // TODO --- 5
 // Load the configuration files
 // Call build_tables(FILE *fp)
+
+  FILE * fp;
+  //enter YOUR filepath here
+  //Daniel's: /Users/daniel/Google Drive/Fall2018/Data Comms/
+  char* filepath = "/Users/daniel/Google Drive/Fall2018/Data Comms/";
+  char* fullFilepath = (char*)malloc(strlen(filepath) + strlen(argv[0]) +1);
+  strcat(fullFilepath, argv[0]);
+  fp = fopen(filepath, "r");
+  if(fp == NULL)
+    perror("filepath failed");
+
+  build_tables(fp);
+  free(fullFilepath);
 
 }
 
@@ -343,9 +358,9 @@ int main(int argc, char ** argv) {
       perror("Usage: ./node <own_config_file> <other_config_files>");
     }
 
-    load_from_file();
+    load_from_file(argc - 1, argv + 1);
     // initialize routing information
-
+/*
     int listen_socket;
     fd_set full_fd_set;
     fd_set *running_ptr;
@@ -400,4 +415,6 @@ int main(int argc, char ** argv) {
         }
         check_for_expired_routes();
     }
+    */
+    return 0;
 }
