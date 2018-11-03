@@ -278,7 +278,7 @@ void build_tables(FILE *fp)
     }
 }
 
-void load_from_file(char* file_name)
+void load_from_file(char* file_name){
 
 
 // TODO --- 5
@@ -746,6 +746,6 @@ int main(int argc, char ** argv)
         }
         check_for_expired_routes();
     }
-    */
+    
     return 0;
 }
