@@ -366,9 +366,9 @@ void send_packet(char * dest_addr, char * msg, int msg_size, int TTL, int protoc
 
     ip_header->ip_id = rand();
     inet_aton(interface->my_vip, &ip_header->ip_src);
-    //ip_header->ip_src = inet_addr(interface->my_vip);
+    //old: ip_header->ip_src = inet_addr(interface->my_vip);
     inet_aton(f_entry->dest_addr, &ip_header->ip_dst);
-    //ip_header->ip_dst = inet_addr(f_entry->dest_addr);
+    //old: ip_header->ip_dst = inet_addr(f_entry->dest_addr);
     ip_header->ip_v = 4;
     ip_header->ip_ttl = TTL;
     ip_header->ip_p = protocol;
