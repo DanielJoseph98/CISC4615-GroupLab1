@@ -11,6 +11,9 @@
 #include <time.h>
 #include "ipsum.h"
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 using namespace std;
 
 #define MAX_NUM_ROUTING_ENTRIES 64
@@ -20,7 +23,7 @@ using namespace std;
 #define MAX_MTU_SIZE 1400
 #define MAX_RECV_SIZE (1024 * 64) // 64 KB
 #define TEST_PROTOCOL_VAL 0
-#define RIP_PROTOCOL_VAL 200
+#define Rip_pCOL_VAL 200
 
 typedef struct interface
 {
@@ -98,7 +101,7 @@ void print_mem(char const *vp, size_t n)
 }
 ;
 
-void send_packet_with_interface(interface_t * interface, char * data, int data_size, struct iphdr * ip_header)
+void send_packet_with_interface(interface_t * interface, char * data, int data_size, struct ip * ip_header)
 {
     if (!interface->is_up)
         return;
@@ -113,14 +116,14 @@ void send_packet_with_interface(interface_t * interface, char * data, int data_s
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(interface->my_port);
 
-    ip_header->tot_len = ip_header->ihl * 4 + data_size;
-    ip_header->check = ip_sum((char*) ip_header, ip_header->ihl * 4);
-    char full_packet[ip_header->tot_len];
+    ip_header->ip_len = ip_header->ip_hl * 4 + data_size;
+    ip_header->ip_sum = ip_sum((char*) ip_header, ip_header->ip_hl * 4);
+    char full_packet[ip_header->ip_len];
 
-    memcpy(full_packet, ip_header, ip_header->ihl * 4);
-    memcpy(full_packet + ip_header->ihl * 4, data, data_size);
+    memcpy(full_packet, ip_header, ip_header->ip_hl * 4);
+    memcpy(full_packet + ip_header->ip_hl * 4, data, data_size);
 
-    if (sendto(interface->send_socket, full_packet, ip_header->tot_len, 0, (struct sockaddr*) &dest_addr, sizeof(dest_addr)) < 0)
+    if (sendto(interface->send_socket, full_packet, ip_header->ip_len, 0, (struct sockaddr*) &dest_addr, sizeof(dest_addr)) < 0)
     {
         perror("Failed to send packet");
     }
@@ -278,7 +281,10 @@ void load_from_file(char* file_name)
 // Call build_tables(FILE *fp)
     char content[2000];
     FILE *fp;
-    fp = fopen(file_name, "r");
+    char *filePrefix = "/Users/daniel/Google Drive/Fall2018/Data Comms/Group Lab 1";
+    char* fullFilepath = (char*)malloc(strlen(filePrefix) + strlen(file_name) +1);
+    strcat(fullFilepath, file_name);
+    fp = fopen(fullFilepath, "r");
 
     if (fp == NULL)
     {
@@ -356,19 +362,21 @@ void send_packet(char * dest_addr, char * msg, int msg_size, int TTL, int protoc
     char packet[MAX_MTU_SIZE];
     memset(&packet[0], 0, sizeof(packet));
 
-    struct iphdr * ip_header = (struct iphdr*) packet;
+    struct ip * ip_header = (struct ip*) packet;
 
-    ip_header->id = rand();
-    ip_header->saddr = inet_addr(interface->my_vip);
-    ip_header->daddr = inet_addr(f_entry->dest_addr);
-    ip_header->version = 4;
-    ip_header->ttl = TTL;
-    ip_header->protocol = protocol;
-    ip_header->ihl = 5;
+    ip_header->ip_id = rand();
+    inet_aton(interface->my_vip, &ip_header->ip_src);
+    //ip_header->ip_src = inet_addr(interface->my_vip);
+    inet_aton(f_entry->dest_addr, &ip_header->ip_dst);
+    //ip_header->ip_dst = inet_addr(f_entry->dest_addr);
+    ip_header->ip_v = 4;
+    ip_header->ip_ttl = TTL;
+    ip_header->ip_p = protocol;
+    ip_header->ip_hl = 5;
 
-    ip_header->check = 0;
-    ip_header->tot_len = 0;
-    ip_header->frag_off = 0;
+    ip_header->ip_sum = 0;
+    ip_header->ip_len = 0;
+    ip_header->ip_off = 0;
 
     send_packet_with_interface(interface, msg, msg_size, ip_header);
     return;
@@ -451,7 +459,7 @@ void send_forwarding_update(char * dest_addr)
             RIP_packet->entries[i].cost = FORWARDING_TABLE.forwarding_entries[i].cost;
         }
     }
-    send_packet(dest_addr, (char *) RIP_packet, sizeof(rip_packet_t), MAX_TTL, RIP_PROTOCOL_VAL);
+    send_packet(dest_addr, (char *) RIP_packet, sizeof(rip_packet_t), MAX_TTL, Rip_pCOL_VAL);
 }
 
 void activate_RIP_update()
@@ -475,7 +483,7 @@ void request_routes()
         RIP_packet->command = 1;
         RIP_packet->num_entries = 0;
 
-        send_packet(IFCONFIG_TABLE.ifconfig_entries[i].other_vip, (char *) RIP_packet, sizeof(rip_packet_t), MAX_TTL, RIP_PROTOCOL_VAL);
+        send_packet(IFCONFIG_TABLE.ifconfig_entries[i].other_vip, (char *) RIP_packet, sizeof(rip_packet_t), MAX_TTL, Rip_pCOL_VAL);
     }
 }
 
@@ -491,7 +499,7 @@ void check_for_expired_routes()
     int i;
     for (i = 0; i < FORWARDING_TABLE.num_entries; i += 1)
     {
-        if (forwarding_entries[i].interface_id != -1 & ((int) time(NULL) - (int) forwarding_entries[i].last_updated > 12))
+        if (forwarding_entries[i].interface_id != -1 && ((int) time(NULL) - (int) forwarding_entries[i].last_updated > 12))
         {
             //printf("DEBUG: found expired entry!");
             forwarding_entries[i].cost = 16; // entry expired
@@ -585,7 +593,7 @@ void handle_packet(int listen_socket)
     // Think carefully and completely
     // You should call multiple functions listed above
     char recv_buffer[MAX_RECV_SIZE];
-    struct iphdr * recv_header;
+    struct ip * recv_header;
     char * recv_data_ptr;
     char recv_data_buffer[MAX_RECV_SIZE];
     int received_ip_checksum, calculated_ip_checksum;
@@ -594,12 +602,12 @@ void handle_packet(int listen_socket)
 
     recv(listen_socket, recv_buffer, MAX_RECV_SIZE, 0);
     //printf("DEBUG: Received Packet\n");
-    recv_header = (struct iphdr *) recv_buffer;
-    recv_data_ptr = (recv_buffer + recv_header->ihl * 4);
+    recv_header = (struct ip *) recv_buffer;
+    recv_data_ptr = (recv_buffer + recv_header->ip_hl * 4);
 
-    received_ip_checksum = recv_header->check;
-    recv_header->check = 0;
-    calculated_ip_checksum = ip_sum((char *) recv_header, recv_header->ihl * 4);
+    received_ip_checksum = recv_header->ip_sum;
+    recv_header->ip_sum = 0;
+    calculated_ip_checksum = ip_sum((char *) recv_header, recv_header->ip_hl * 4);
 
     if (received_ip_checksum != calculated_ip_checksum)
     {
@@ -607,7 +615,7 @@ void handle_packet(int listen_socket)
         return;
     }
 
-    if (recv_header->ttl <= 0)
+    if (recv_header->ip_ttl <= 0)
     {
         printf("TTL surpassed, dropping packet\n");
         return;
@@ -615,13 +623,13 @@ void handle_packet(int listen_socket)
 
     char src_addr[IP_ADDR_LEN];
     char dest_addr[IP_ADDR_LEN];
-    inet_ntop(AF_INET, &(recv_header->saddr), src_addr, INET_ADDRSTRLEN);
-    inet_ntop(AF_INET, &(recv_header->daddr), dest_addr, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &(recv_header->ip_src), src_addr, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &(recv_header->ip_dst), dest_addr, INET_ADDRSTRLEN);
 
     memset(&recv_data_buffer[0], 0, (MAX_RECV_SIZE));
-    memcpy(recv_data_buffer, recv_data_ptr, MAX_RECV_SIZE - recv_header->ihl * 4);
+    memcpy(recv_data_buffer, recv_data_ptr, MAX_RECV_SIZE - recv_header->ip_hl * 4);
 
-    if (recv_header->protocol == TEST_PROTOCOL_VAL)
+    if (recv_header->ip_p == TEST_PROTOCOL_VAL)
     {
         if (is_dest_equal_to_me(dest_addr))
         {
@@ -629,10 +637,10 @@ void handle_packet(int listen_socket)
         }
         else
         {
-            send_packet((char *) dest_addr, recv_data_buffer, strlen(recv_data_buffer), (recv_header->ttl) - 1, recv_header->protocol);
+            send_packet((char *) dest_addr, recv_data_buffer, strlen(recv_data_buffer), (recv_header->ip_ttl) - 1, recv_header->ip_p);
         }
     }
-    else if (recv_header->protocol == RIP_PROTOCOL_VAL)
+    else if (recv_header->ip_p == Rip_pCOL_VAL)
     {
         rip_packet_t * RIP_packet = (rip_packet_t *) recv_data_buffer;
         if (RIP_packet->command == 1)
