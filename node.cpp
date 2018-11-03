@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <time.h>
+
 #include "ipsum.h"
 
 #include <netinet/in.h>
@@ -98,6 +99,7 @@ void print_mem(char const *vp, size_t n)
     for (size_t i = 0; i < n; i++)
         printf("%02x\n", p[i]);
     putchar('\n');
+
 }
 ;
 
@@ -105,6 +107,8 @@ void send_packet_with_interface(interface_t * interface, char * data, int data_s
 {
     if (!interface->is_up)
         return;
+
+
 
 // TODO --- 1
 // contruct the socket and send it through socket
@@ -131,6 +135,7 @@ void send_packet_with_interface(interface_t * interface, char * data, int data_s
 
 interface_t* get_interface_by_id(int id)
 {
+
     interface_t * temp = IFCONFIG_TABLE.ifconfig_entries;
     int i;
     for (i = 0; i < IFCONFIG_TABLE.num_entries; i++)
@@ -274,7 +279,7 @@ void build_tables(FILE *fp)
 }
 
 void load_from_file(char* file_name)
-{
+
 
 // TODO --- 5
 // Load the configuration files
@@ -305,6 +310,7 @@ void load_from_file(char* file_name)
     build_tables(fp);
 
     fclose(fp);
+
 }
 
 bool is_dest_equal_to_me(char * dest_addr)
@@ -514,6 +520,7 @@ void choose_command(char * command)
     // TODO --- 9
     // Get the command from the user
     // Process the commands
+
     char temp_char;
     int ID;
     if (strcmp("ifconfig", command) == 0)
@@ -554,6 +561,8 @@ void choose_command(char * command)
     }
     while ((temp_char = getchar()) != '\n' && temp_char != EOF)
         ; // clear stdin buffer
+
+
 }
 
 int init_listen_socket(int port, fd_set * running_fd_set)
@@ -676,6 +685,8 @@ int main(int argc, char ** argv)
     }
     load_from_file(argv[1]);
     // initialize routing information
+
+
     int listen_socket;
     fd_set full_fd_set;
     fd_set *running_ptr;
@@ -735,4 +746,6 @@ int main(int argc, char ** argv)
         }
         check_for_expired_routes();
     }
+    */
+    return 0;
 }
